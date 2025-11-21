@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>마라톤 여행 매니저 Pro</title>
+    <style>
+        :root {
+            --primary: #3b82f6;     /* 체크 (파랑) */
+            --sched: #8b5cf6;       /* 일정 (보라) */
+            --money: #10b981;       /* 정산 (초록) */
+            --memo: #f59e0b;        /* 메모 (주황) */
+            --bg: #f3f4f6;
+            --card: #ffffff;
+            --text: #1f2937;
+            --gray: #9ca3af;
+            --danger: #ef4444;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+            background-color: var(--bg);
+            margin: 0; padding: 0;
+            color: var(--text);
+            height: 100vh;
+            display: flex; flex-direction: column;
+        }
+
+        /* === 상단 헤더 === */
+        .header {
+            background: var(--card);
+            padding: 15px 15px 0 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            flex-shrink: 0; z-index: 10;
+        }
+        h1 { margin: 0 0 5px 0; font-size: 1.1rem; text-align: center; color: #111827; }
+        .tabs { display: flex; gap: 0; margin-top: 10px; }
+        .tab-btn {
+            flex: 1; padding: 12px 0;
+            border: none; background: none;
+            font-weight: 600; font-size: 0.9rem; color: var(--gray);
+            border-bottom: 3px solid transparent;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .tab-btn.active { color: var(--text); }
+        .tab-btn[data-t="check"].active { color: var(--primary); border-color: var(--primary); }
+        .tab-btn[data-t="sched"].active { color: var(--sched); border-color: var(--sched); }
+        .tab-btn[data-t="money"].active { color: var(--money); border-color: var(--money); }
+        .tab-btn[data-t="memo"].active { color: var(--memo); border-color: var(--memo); }
+
+        /* === 메인 컨텐츠 === */
+        .content {
+            flex-grow: 1; overflow-y: auto;
+            padding: 15px; padding-bottom: 140px; /* 입력창 공간 확보 */
+        }
+        .section { display: none; animation: fadeIn 0.2s; }
+        .section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* 공통 카드 스타일 */
+        .card {
+            background: var(--card); border-radius: 12px;
+            padding: 15px; margin-bottom: 10px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            position: relative;
+        }
+        .del-btn {
+            position: absolute; top: 12px; right: 12px;
+            background: none; border: none; color: #ffcccc;
+            font-size: 1.2rem; line-height: 1; padding: 5px;
+        }
+        .del-btn:hover { color: var(--danger); }
+
+        /* [1] 체크리스트 스타일 */
+        .cat-title { font-weight: 800; color: #4b5563; margin: 25px 0 8px 5px; font-size: 1rem; display: flex; align-items: center; }
+        .cat-title::before { content:''; width:4px; height:14px; background:var(--primary); margin-right:8px; border-radius:2px; }
+        
+        .check-row { display: flex; align-items: flex-start; cursor: pointer; }
+        .checkbox {
+            width: 20px; height: 20px; border: 2px solid #d1d5db; border-radius: 6px;
+            margin-right: 12px; flex-shrink: 0; margin-top: 2px;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .checked .checkbox { background: var(--primary); border-color: var(--primary); }
+        .checked .checkbox::after { content:'✓'; color:white; font-size:14px; }
+        .check-text { font-size: 1rem; font-weight: 500; line-height: 1.4; }
+        .check-note { font-size: 0.85rem; color: var(--gray); margin-top: 4px; word-break: break-all; }
+        .check-note a { color: var(--primary); text-decoration: none; }
+        .checked .check-text, .checked .check-note { text-decoration: line-through; color: #d1d5db; }
+
+        /* [2] 일정 스타일 */
+        .day-badge {
+            display: inline-block; background: #ede9fe; color: var(--sched);
+            font-weight: 800; font-size: 0.85rem; padding: 5px 12px;
+            border-radius: 20px; margin: 20px 0 10px 0;
+        }
+        .sched-time { color: var(--sched); font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; }
+        .sched-title { font-weight: 600; font-size: 1.05rem; margin-bottom: 6px; }
+        .sched-memo { font-size: 0.9rem; color: #666; background: #f9fafb; padding: 8px; border-radius: 6px; margin-bottom: 8px; }
+        .map-btn {
+            display: inline-block; background: #eff6ff; color: #2563eb;
+            font-size: 0.8rem; font-weight: 600; padding: 6px 10px;
+            border-radius: 6px; text-decoration: none;
+        }
+
+        /* [3] 정산 스타일 */
+        .money-summary {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;
+        }
+        .sum-box {
+            background: white; padding: 15px; border-radius: 12px; text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .sum-label { font-size: 0.8rem; color: #666; margin-bottom: 4px; }
+        .sum-val { font-weight: 800; font-size: 1.2rem; }
+        .sum-val.total { color: var(--money); }
+        .sum-val.unsettled { color: var(--danger); }
+
+        .money-card { display: flex; justify-content: space-between; align-items: center; }
+        .money-left { flex-grow: 1; }
+        .money-desc { font-weight: 600; font-size: 1rem; }
+        .money-meta { font-size: 0.8rem; color: #888; margin-top: 4px; }
+        .badge { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; margin-right: 5px; }
+        .badge.card { background: #e0f2fe; color: #0284c7; }
+        .badge.cash { background: #dcfce7; color: #16a34a; }
+        
+        .money-right { text-align: right; min-width: 80px; }
+        .money-amt { font-weight: 700; font-size: 1.1rem; color: #333; display: block; margin-bottom: 5px;}
+        .settle-check {
+            font-size: 0.8rem; color: #666; display: flex; align-items: center; justify-content: flex-end; cursor: pointer;
+        }
+        .settle-check input { margin-right: 5px; }
+
+        /* [4] 메모 스타일 */
+        .memo-card { min-height: 80px; }
+        .memo-date { font-size: 0.75rem; color: #aaa; margin-bottom: 8px; text-align: right;}
+        .memo-content { white-space: pre-wrap; line-height: 1.5; }
+
+        /* === 하단 입력창 (Dock) === */
+        .dock {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: white; padding: 15px; z-index: 100;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+        }
+        .input-group { display: none; flex-direction: column; gap: 8px; }
+        .input-group.active { display: flex; }
+        .row { display: flex; gap: 8px; }
+        
+        input, select, textarea {
+            padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px;
+            font-size: 1rem; outline: none; background: #f9fafb;
+        }
+        input:focus, textarea:focus { background: white; border-color: #999; }
+        .grow { flex-grow: 1; }
+        
+        .add-btn {
+            background: #111827; color: white; border: none;
+            padding: 0 15px; border-radius: 8px; font-weight: bold;
+            cursor: pointer; height: 42px;
+        }
+        /* 탭별 버튼 색상 */
+        .btn-check { background: var(--primary); }
+        .btn-sched { background: var(--sched); }
+        .btn-money { background: var(--money); }
+        .btn-memo { background: var(--memo); }
+
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>✈️ 마라톤 여행 매니저 Pro</h1>
+    <div class="tabs">
+        <button class="tab-btn active" data-t="check" onclick="setTab('check')">체크</button>
+        <button class="tab-btn" data-t="sched" onclick="setTab('sched')">일정</button>
+        <button class="tab-btn" data-t="money" onclick="setTab('money')">정산</button>
+        <button class="tab-btn" data-t="memo" onclick="setTab('memo')">메모</button>
+    </div>
+</div>
+
+<div class="content">
+    <div id="view-check" class="section active">
+        <div style="background:var(--primary); color:white; padding:12px; border-radius:10px; margin-bottom:15px; font-weight:bold; text-align:center;">
+            준비 완료율: <span id="prog-txt">0%</span>
+        </div>
+        <div id="list-check"></div>
+    </div>
+
+    <div id="view-sched" class="section">
+        <div id="list-sched"></div>
+        <div style="text-align:center; margin-top:30px; color:#aaa; font-size:0.8rem;">
+            일정 제목이 구글맵 검색어(링크)가 됩니다.
+        </div>
+    </div>
+
+    <div id="view-money" class="section">
+        <div class="money-summary">
+            <div class="sum-box">
+                <div class="sum-label">총 지출</div>
+                <div class="sum-val total" id="sum-total">0</div>
+            </div>
+            <div class="sum-box">
+                <div class="sum-label">정산 안 된 금액</div>
+                <div class="sum-val unsettled" id="sum-left">0</div>
+            </div>
+        </div>
+        <div id="list-money"></div>
+    </div>
+
+    <div id="view-memo" class="section">
+        <div id="list-memo"></div>
+        <div style="text-align:center; margin-top:50px; color:#ccc;">자유롭게 기록하세요</div>
+    </div>
+</div>
+
+<div class="dock">
+    <div id="in-check" class="input-group active">
+        <div class="row">
+            <select id="c-cat" style="width:35%"><option>출국 전</option><option>부모님</option><option>나</option><option>기타</option></select>
+            <input type="text" id="c-txt" class="grow" placeholder="준비물 이름">
+        </div>
+        <div class="row">
+            <input type="text" id="c-note" class="grow" placeholder="메모/링크 (선택)">
+            <button class="add-btn btn-check" onclick="addCheck()">추가</button>
+        </div>
+    </div>
+
+    <div id="in-sched" class="input-group">
+        <div class="row">
+            <select id="s-day" style="width:30%"><option value="1">1일차</option><option value="2">2일차</option><option value="3">3일차</option></select>
+            <input type="text" id="s-time" style="width:30%" placeholder="14:00">
+            <input type="text" id="s-title" class="grow" placeholder="일정명(장소)">
+        </div>
+        <div class="row">
+            <input type="text" id="s-memo" class="grow" placeholder="메모 (예: 10분 소요, 환전하기)">
+            <button class="add-btn btn-sched" onclick="addSched()">등록</button>
+        </div>
+    </div>
+
+    <div id="in-money" class="input-group">
+        <div class="row">
+            <select id="m-day" style="width:30%"><option>출국 전</option><option>1일차</option><option>2일차</option><option>3일차</option></select>
+            <select id="m-method" style="width:30%"><option>카드</option><option>현금</option><option>공금</option></select>
+            <input type="number" id="m-amt" class="grow" placeholder="금액">
+        </div>
+        <div class="row">
+            <input type="text" id="m-desc" class="grow" placeholder="내역 (예: 편의점)">
+            <button class="add-btn btn-money" onclick="addMoney()">입력</button>
+        </div>
+    </div>
+
+    <div id="in-memo" class="input-group">
+        <div class="row">
+            <textarea id="memo-txt" class="grow" rows="2" placeholder="여기에 메모를 입력하세요..."></textarea>
+            <button class="add-btn btn-memo" style="height:auto;" onclick="addMemo()">기록</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Data Store
+    const DB = {
+        check: [], sched: [], money: [], memo: []
+    };
+
+    // Load Data
+    function load() {
+        const d = localStorage.getItem('mara_pro_v1');
+        if(d) {
+            const parsed = JSON.parse(d);
+            Object.assign(DB, parsed);
+        } else {
+            // 기본 데이터
+            DB.check = [
+                {id:1, cat:"출국 전", txt:"여행자 보험", note:"부모님 것까지 꼭 확인", ok:false},
+                {id:2, cat:"러너(부모님)", txt:"배번호 & 옷핀", note:"가장 중요함!", ok:false}
+            ];
+            save();
+        }
+        renderAll();
+    }
+    function save() {
+        localStorage.setItem('mara_pro_v1', JSON.stringify(DB));
+    }
+
+    // 탭 전환
+    function setTab(t) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.t === t));
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.getElementById('view-'+t).classList.add('active');
+        document.querySelectorAll('.input-group').forEach(g => g.classList.remove('active'));
+        document.getElementById('in-'+t).classList.add('active');
+    }
+
+    // =========================
+    // 1. 체크리스트 로직
+    // =========================
+    function addCheck() {
+        const cat = document.getElementById('c-cat').value;
+        const txt = document.getElementById('c-txt').value.trim();
+        const note = document.getElementById('c-note').value.trim();
+        if(!txt) return;
+        DB.check.push({id:Date.now(), cat, txt, note, ok:false});
+        document.getElementById('c-txt').value=''; document.getElementById('c-note').value='';
+        save(); renderCheck();
+    }
+    function renderCheck() {
+        const con = document.getElementById('list-check'); con.innerHTML = '';
+        const cats = {};
+        // 카테고리별 분류
+        DB.check.forEach(i => { if(!cats[i.cat]) cats[i.cat]=[]; cats[i.cat].push(i); });
+        
+        // 화면 그리기
+        for(const c in cats) {
+            const h = document.createElement('div'); h.className='cat-title'; h.innerText=c; con.appendChild(h);
+            cats[c].forEach(i => {
+                const d = document.createElement('div'); d.className='card';
+                if(i.ok) d.classList.add('checked');
+                
+                // 링크 자동 변환 로직
+                let noteHtml = i.note;
+                if(i.note && i.note.startsWith('http')) {
+                    noteHtml = `<a href="${i.note}" target="_blank">🔗 링크 열기</a>`;
+                }
+
+                d.innerHTML = `
+                    <div class="check-row" onclick="toggleCheck(${i.id})">
+                        <div class="checkbox"></div>
+                        <div>
+                            <div class="check-text">${i.txt}</div>
+                            ${i.note ? `<div class="check-note">${noteHtml}</div>` : ''}
+                        </div>
+                    </div>
+                    <button class="del-btn" onclick="del('check', ${i.id})">×</button>
+                `;
+                con.appendChild(d);
+            });
+        }
+        // 진행률
+        const tot = DB.check.length;
+        const done = DB.check.filter(i=>i.ok).length;
+        document.getElementById('prog-txt').innerText = tot===0 ? "0%" : Math.round((done/tot)*100)+"%";
+    }
+    function toggleCheck(id) {
+        const i = DB.check.find(x=>x.id===id); if(i){ i.ok=!i.ok; save(); renderCheck(); }
+    }
+
+    // =========================
+    // 2. 일정 로직
+    // =========================
+    function addSched() {
+        const day = document.getElementById('s-day').value;
+        const time = document.getElementById('s-time').value;
+        const title = document.getElementById('s-title').value.trim();
+        const memo = document.getElementById('s-memo').value.trim();
+        if(!title) return;
+        DB.sched.push({id:Date.now(), day, time, title, memo});
+        document.getElementById('s-title').value=''; document.getElementById('s-memo').value='';
+        save(); renderSched();
+    }
+    function renderSched() {
+        const con = document.getElementById('list-sched'); con.innerHTML = '';
+        const days = ["1","2","3"];
+        days.forEach(d => {
+            const list = DB.sched.filter(i=>i.day===d).sort((a,b)=>a.time.localeCompare(b.time));
+            if(list.length > 0) {
+                const h = document.createElement('div'); h.className='day-badge'; h.innerText=`Day ${d}`; con.appendChild(h);
+                list.forEach(i => {
+                    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(i.title)}`;
+                    const el = document.createElement('div'); el.className='card';
+                    el.innerHTML = `
+                        <div class="sched-time">${i.time || '--:--'}</div>
+                        <div class="sched-title">${i.title}</div>
+                        ${i.memo ? `<div class="sched-memo">📝 ${i.memo}</div>` : ''}
+                        <a href="${mapUrl}" target="_blank" class="map-btn">📍 지도 보기</a>
+                        <button class="del-btn" onclick="del('sched', ${i.id})">×</button>
+                    `;
+                    con.appendChild(el);
+                });
+            }
+        });
+    }
+
+    // =========================
+    // 3. 정산 로직
+    // =========================
+    function addMoney() {
+        const day = document.getElementById('m-day').value;
+        const method = document.getElementById('m-method').value;
+        const amt = document.getElementById('m-amt').value;
+        const desc = document.getElementById('m-desc').value.trim();
+        if(!amt || !desc) return;
+        DB.money.push({id:Date.now(), day, method, amt:Number(amt), desc, settled:false});
+        document.getElementById('m-amt').value=''; document.getElementById('m-desc').value='';
+        save(); renderMoney();
+    }
+    function renderMoney() {
+        const con = document.getElementById('list-money'); con.innerHTML = '';
+        
+        let total = 0;
+        let left = 0;
+        
+        // 일자별 그룹핑 (입력 역순)
+        const list = [...DB.money].sort((a,b)=>b.id-a.id);
+        const groups = {};
+        list.forEach(i => { if(!groups[i.day]) groups[i.day]=[]; groups[i.day].push(i); });
+        
+        // 계산 및 렌더링
+        for(const day in groups) {
+            const h = document.createElement('div'); 
+            h.style.marginTop='20px'; h.style.fontWeight='bold'; h.style.color='#666'; h.innerText=day;
+            con.appendChild(h);
+
+            groups[day].forEach(i => {
+                total += i.amt;
+                if(!i.settled) left += i.amt;
+
+                const el = document.createElement('div'); el.className='card money-card';
+                const badgeClass = i.method==='카드'?'card':'cash';
+                el.innerHTML = `
+                    <div class="money-left">
+                        <div class="money-desc">${i.desc}</div>
+                        <div class="money-meta">
+                            <span class="badge ${badgeClass}">${i.method}</span>
+                        </div>
+                    </div>
+                    <div class="money-right">
+                        <span class="money-amt">${i.amt.toLocaleString()}</span>
+                        <label class="settle-check">
+                            <input type="checkbox" ${i.settled?'checked':''} onchange="toggleSettle(${i.id})"> 정산완료
+                        </label>
+                    </div>
+                    <button class="del-btn" style="top:5px; right:5px; font-size:1rem;" onclick="del('money', ${i.id})">×</button>
+                `;
+                con.appendChild(el);
+            });
+        }
+        
+        document.getElementById('sum-total').innerText = total.toLocaleString();
+        document.getElementById('sum-left').innerText = left.toLocaleString();
+    }
+    function toggleSettle(id) {
+        const i = DB.money.find(x=>x.id===id); if(i){ i.settled=!i.settled; save(); renderMoney(); }
+    }
+
+    // =========================
+    // 4. 메모 로직
+    // =========================
+    function addMemo() {
+        const txt = document.getElementById('memo-txt').value.trim();
+        if(!txt) return;
+        const date = new Date().toLocaleString('ko-KR', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'});
+        DB.memo.push({id:Date.now(), txt, date});
+        document.getElementById('memo-txt').value='';
+        save(); renderMemo();
+    }
+    function renderMemo() {
+        const con = document.getElementById('list-memo'); con.innerHTML = '';
+        [...DB.memo].sort((a,b)=>b.id-a.id).forEach(i => {
+            const d = document.createElement('div'); d.className='card memo-card';
+            d.innerHTML = `
+                <div class="memo-date">${i.date}</div>
+                <div class="memo-content">${i.txt}</div>
+                <button class="del-btn" onclick="del('memo', ${i.id})">×</button>
+            `;
+            con.appendChild(d);
+        });
+    }
+
+    // 공통 삭제
+    function del(type, id) {
+        if(confirm('삭제하시겠습니까?')) {
+            DB[type] = DB[type].filter(x => x.id !== id);
+            save(); renderAll();
+        }
+    }
+    function renderAll() { renderCheck(); renderSched(); renderMoney(); renderMemo(); }
+
+    window.onload = load;
+
+</script>
+</body>
+</html>
